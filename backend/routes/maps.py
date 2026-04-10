@@ -33,10 +33,7 @@ router = APIRouter(
 # MAP ENDPOINTS
 
 @router.get("/locations", response_model=List[LocationResponse])
-def fetch_all_locations(
-    db: Session = Depends(get_db),
-    current_user=Depends(get_current_user)   # requires login
-):
+def fetch_all_locations(db: Session = Depends(get_db)):
     """
     GET /maps/locations
 
@@ -86,8 +83,7 @@ def add_location(
 @router.post("/locations/nearby", response_model=List[NearbyLocationResponse])
 def fetch_nearby_centers(
     request: NearbyRequest,
-    db: Session = Depends(get_db),
-    current_user=Depends(get_current_user)
+    db: Session = Depends(get_db)
 ):
     """
     POST /maps/locations/nearby

@@ -1,22 +1,34 @@
-from sqlalchemy import Column, Integer, String, ForeignKey, DateTime
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text
 from sqlalchemy.sql import func
-from backend.database import Base
+from database import Base
+
 
 class DisasterReport(Base):
+    """
+    A disaster event reported by any user.
+    Maps to the 'disaster_reports' table.
+    """
     __tablename__ = "disaster_reports"
-    id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"))
-    title = Column(String, nullable=False)
-    description = Column(String)
-    location = Column(String)
-    status = Column(String, default="reported") 
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    id          = Column(Integer, primary_key=True, index=True)
+    user_id     = Column(Integer, ForeignKey("users.id"), nullable=False)
+    title       = Column(String, nullable=False)
+    description = Column(Text, nullable=False)
+    location    = Column(String, nullable=False)
+    status      = Column(String, default="reported")   # reported | in_progress | resolved
+    created_at  = Column(DateTime(timezone=True), server_default=func.now())
+
 
 class HelpRequest(Base):
+    """
+    A help request submitted by a user in need.
+    Maps to the 'help_requests' table.
+    """
     __tablename__ = "help_requests"
-    id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"))
-    type = Column(String) 
-    description = Column(String)
-    status = Column(String, default="reported")
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    id          = Column(Integer, primary_key=True, index=True)
+    user_id     = Column(Integer, ForeignKey("users.id"), nullable=False)
+    type        = Column(String, nullable=False)        # food | medical | shelter
+    description = Column(Text, nullable=False)
+    status      = Column(String, default="reported")   # reported | in_progress | resolved
+    created_at  = Column(DateTime(timezone=True), server_default=func.now())
