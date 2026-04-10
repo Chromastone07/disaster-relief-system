@@ -1,0 +1,109 @@
+.volunteers-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 20px;
+}
+
+.vol-card {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 20px;
+    border-radius: 12px;
+}
+
+.vol-avatar {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    background: var(--bg-secondary);
+    border: 2px solid var(--accent-main);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--accent-main);
+}
+
+.vol-info {
+    flex: 1;
+}
+
+.vol-info h3 {
+    font-size: 1.1rem;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+}
+
+.vol-skills {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    margin-bottom: 8px;
+}
+
+.vol-meta {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+}
+
+.status-badge {
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 10px;
+}
+
+.status-badge.available {
+    background: var(--success-bg);
+    color: var(--success);
+}
+
+.status-badge.busy {
+    background: var(--warning-bg);
+    color: var(--warning);
+}
+
+.contact-info {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    cursor: pointer;
+}
+
+.contact-info:hover {
+    color: var(--info);
+}
+
+.assign-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    width: 60px;
+    height: 60px;
+    border-radius: 12px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-glass);
+    color: var(--text-primary);
+    font-size: 0.7rem;
+    transition: all 0.2s;
+}
+
+.assign-btn:not(:disabled):hover {
+    background: var(--accent-light);
+    color: var(--accent-dark);
+    border-color: var(--accent-main);
+}
+
+[data-theme='dark'] .assign-btn:not(:disabled):hover {
+    background: var(--accent-dark);
+    color: var(--text-primary);
+}
+
+.assign-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
