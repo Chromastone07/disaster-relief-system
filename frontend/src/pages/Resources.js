@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Package, Plus, Trash2, Edit3, ShieldAlert, CheckCircle, XOctagon } from 'lucide-react';
+import { Package, Plus, Trash2, Edit3, CheckCircle, XOctagon } from 'lucide-react';
 import apiClient from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
@@ -22,7 +22,7 @@ function ResourcesPage() {
 
     const fetchData = async () => {
         try {
-            const res = await apiClient.get('/volunteers/resources');
+            const res = await apiClient.get('/disaster/inventory');
             setResources(res.data);
         } catch (err) {
             showToast("Failed to fetch inventory streams", "error");
@@ -31,21 +31,21 @@ function ResourcesPage() {
         }
     };
 
-    useEffect(() => {
-        fetchData();
-    }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    useEffect(() => { fetchData(); }, []);
 
     const handleAddSubmit = async (e) => {
         e.preventDefault();
         try {
-            await apiClient.post('/volunteers/resources', {
-                name: formData.name,
-                type: formData.type,
-                quantity: parseInt(formData.quantity)
+            await apiClient.post('/disaster/inventory', {
+                item: formData.name,
+                category: formData.type,
+                quantity: parseInt(formData.quantity),
+                location: formData.location || 'Warehouse A'
             });
-            showToast(user?.role === 'admin' ? "Stockpile physically mapped." : "Inventory addition queued for Admin clearance.", "success");
+            showToast(user?.role === 'admin' ? "Inventory mapped securely." : "Submitted for admin review.", "success");
             setAddModalOpen(false);
-            setFormData({ name: '', type: 'food', quantity: 0 });
+            setFormData({ name: '', type: 'food', quantity: 0, location: '' });
             fetchData();
         } catch (err) {
             showToast("Network blocked the transaction.", "error");
@@ -55,7 +55,7 @@ function ResourcesPage() {
     const handleEditSubmit = async (e) => {
         e.preventDefault();
         try {
-            await apiClient.patch(`/volunteers/resources/${selectedResId}`, {
+            await apiClient.patch(`/disaster/inventory/${selectedResId}`, {
                 quantity: parseInt(editQuantity)
             });
             showToast("Quantity recalibrated.", "success");
@@ -68,8 +68,8 @@ function ResourcesPage() {
 
     const handleDelete = async (id) => {
         try {
-            await apiClient.delete(`/volunteers/resources/${id}`);
-            showToast("Cache deleted from the grid.", "success");
+            await apiClient.delete(`/disaster/inventory/${id}`);
+            showToast("Item removed from inventory.", "success");
             fetchData();
         } catch (err) {
            showToast("Permission denied.", "error");
@@ -78,11 +78,11 @@ function ResourcesPage() {
 
     const resolveResource = async (id, statusLiteral) => {
         try {
-            await apiClient.patch(`/volunteers/resources/${id}/approve`, { status: statusLiteral });
-            showToast(`Resource tracking ${statusLiteral}`, "info");
+            await apiClient.patch(`/disaster/inventory/${id}/approve`, { status: statusLiteral });
+            showToast(`Resource ${statusLiteral}`, "info");
             fetchData();
         } catch(err) {
-            showToast("Cannot process approval vector.", "error");
+            showToast("Cannot process approval.", "error");
         }
     };
 
@@ -119,8 +119,9 @@ function ResourcesPage() {
                                             <h3 style={{color: 'var(--warning)'}}>UNVERIFIED DATA</h3>
                                         </div>
                                         <div className="res-details">
-                                            <h4>{res.name}</h4>
-                                            <p className="res-type">Category: {res.type.toUpperCase()}</p>
+                                            <h4>{res.item}</h4>
+                                            <p className="res-type">Category: {res.category.toUpperCase()}</p>
+                                            <p className="res-type">Location: {res.location}</p>
                                             <div className="res-quantity">
                                                 <span className="qty-number">{res.quantity}</span> units mapped
                                             </div>
@@ -164,8 +165,8 @@ function ResourcesPage() {
                                         )}
                                     </div>
                                     <div className="res-details">
-                                        <h4>{res.name}</h4>
-                                        <p className="res-type">{res.type.toUpperCase()}</p>
+                                        <h4>{res.item}</h4>
+                                        <p className="res-type">{res.category.toUpperCase()} | {res.location}</p>
                                         <div className="res-quantity">
                                             <span className="qty-number">{res.quantity}</span> units
                                         </div>
@@ -194,6 +195,10 @@ function ResourcesPage() {
                             <option value="equipment">Heavy Equipment / Tooling</option>
                             <option value="personnel">Shelter Gear</option>
                         </select>
+                    </div>
+                    <div>
+                        <label>Location / Facility Name</label>
+                        <input type="text" value={formData.location || ''} onChange={e => setFormData({...formData, location: e.target.value})} required />
                     </div>
                     <div>
                         <label>Initial Quantity Count</label>

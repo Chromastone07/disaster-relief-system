@@ -32,3 +32,19 @@ class HelpRequest(Base):
     description = Column(Text, nullable=False)
     status      = Column(String, default="reported")   # reported | in_progress | resolved
     created_at  = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class Inventory(Base):
+    """
+    Tracks inventory of relief materials.
+    Maps to the 'inventory' table.
+    """
+    __tablename__ = "inventory"
+
+    id          = Column(Integer, primary_key=True, index=True)
+    item        = Column(String, nullable=False)
+    quantity    = Column(Integer, default=0)
+    category    = Column(String, nullable=False)
+    location    = Column(String, nullable=False)
+    approval_status = Column(String, default="pending") # "pending" | "approved" | "denied"
+    created_at  = Column(DateTime(timezone=True), server_default=func.now())

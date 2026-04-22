@@ -49,3 +49,29 @@ class HelpRequestResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+# ── INVENTORY ──
+
+class InventoryCreate(BaseModel):
+    item: str
+    quantity: int
+    category: str
+    location: str
+
+
+class InventoryUpdate(BaseModel):
+    quantity: int
+
+
+class InventoryResponse(BaseModel):
+    id: int
+    item: str
+    quantity: int
+    category: str
+    location: str
+    approval_status: str
+    created_at: datetime
+
+    class Config:
+        from_attributes = True

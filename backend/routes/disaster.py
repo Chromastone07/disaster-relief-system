@@ -5,12 +5,14 @@ from typing import List
 from database import get_db
 from schemas.disaster import (
     DisasterCreate, DisasterResponse, DisasterStatusUpdate,
-    HelpRequestCreate, HelpRequestResponse, HelpStatusUpdate
+    HelpRequestCreate, HelpRequestResponse, HelpStatusUpdate,
+    InventoryCreate, InventoryResponse, InventoryUpdate
 )
 from services.disaster_service import (
     report_disaster, get_all_disasters, update_disaster_status,
     request_help, get_all_requests, update_request_status
 )
+from services.inventory_service import manage_inventory
 from services.auth_service import get_current_user
 
 router = APIRouter(prefix="/disaster", tags=["Disaster & Help Requests"])
@@ -115,3 +117,70 @@ def update_help(
     if current_user.role != "admin":
         raise HTTPException(status_code=403, detail="Admin access required.")
     return update_request_status(request_id, data.status, db)
+
+
+# ── INVENTORY ──
+
+@router.post("/inventory", response_model=InventoryResponse, status_code=201)
+def create_inventory(
+    data: InventoryCreate,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user)
+):
+    """POST /disaster/inventory — Create inventory item."""
+    return manage_inventory("create", db, inventory_data=data.model_dump())
+
+
+@router.get("/inventory", response_model=List[InventoryResponse])
+def get_inventory(db: Session = Depends(get_db)):
+    """GET /disaster/inventory — All inventory."""
+    return manage_inventory("list", db)
+
+
+@router.patch("/inventory/{inventory_id}", response_model=InventoryResponse)
+def update_inventory(
+    inventory_id: int,
+    data: InventoryUpdate,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user)
+):
+    """PATCH /disaster/inventory/{id} - Update quantity. Admin only."""
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required.")
+    return manage_inventory("update", db, inventory_id=inventory_id, quantity=data.quantity)
+
+
+@router.delete("/inventory/{inventory_id}")
+def delete_inventory(
+    inventory_id: int,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user)
+):
+    """DELETE /disaster/inventory/{id} - Remove an inventory item. Admin only."""
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required.")
+    return manage_inventory("delete", db, inventory_id=inventory_id)
+
+
+from pydantic import BaseModel as _BaseModel
+class _ApprovalUpdate(_BaseModel):
+    status: str
+
+@router.patch("/inventory/{inventory_id}/approve", response_model=InventoryResponse)
+def approve_inventory(
+    inventory_id: int,
+    data: _ApprovalUpdate,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user)
+):
+    """PATCH /disaster/inventory/{id}/approve - Admin resolves pending inventory item."""
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required.")
+    from models.disaster import Inventory
+    inv = db.query(Inventory).filter(Inventory.id == inventory_id).first()
+    if not inv:
+        raise HTTPException(status_code=404, detail="Inventory item not found.")
+    inv.approval_status = data.status
+    db.commit()
+    db.refresh(inv)
+    return inv

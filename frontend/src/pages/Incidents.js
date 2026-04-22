@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { AlertTriangle, Plus, LifeBuoy, CheckCircle, XCircle } from 'lucide-react';
-import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import apiClient from '../api/client';
 import { useAuth } from '../context/AuthContext';
@@ -15,6 +15,14 @@ L.Icon.Default.mergeOptions({
   iconUrl: require('leaflet/dist/images/marker-icon.png'),
   shadowUrl: require('leaflet/dist/images/marker-shadow.png'),
 });
+
+function ChangeView({ center, zoom }) {
+    const map = useMap();
+    useEffect(() => {
+        if (center) map.flyTo(center, zoom, { animate: true, duration: 1.2 });
+    }, [center, zoom, map]);
+    return null;
+}
 
 function MapPicker({ position, setPosition }) {
     useMapEvents({
@@ -118,6 +126,8 @@ function IncidentsPage() {
             setReportModalOpen(false);
             setReportForm({ title: '', description: '', locationMode: 'manual', location: '' });
             setMapPosition(null);
+            setMapCenter([20, 0]);
+            setMapZoom(2);
             fetchData(); 
         } catch (err) { 
             showToast("Failed to submit report. Backend restricted.", "error");
@@ -163,6 +173,28 @@ function IncidentsPage() {
     const [reportForm, setReportForm] = useState({ title: '', description: '', locationMode: 'manual', location: '' });
     const [helpForm, setHelpForm] = useState({ type: 'food', description: '' });
     const [mapPosition, setMapPosition] = useState(null);
+    const [mapCenter, setMapCenter] = useState([20, 0]); // world-level fallback
+    const [mapZoom, setMapZoom] = useState(2);
+    const [locatingUser, setLocatingUser] = useState(false);
+
+    const flyToUserLocation = () => {
+        if (!navigator.geolocation) return;
+        setLocatingUser(true);
+        navigator.geolocation.getCurrentPosition(
+            (pos) => {
+                const coords = [pos.coords.latitude, pos.coords.longitude];
+                setMapCenter(coords);
+                setMapZoom(15);
+                setMapPosition({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+                setLocatingUser(false);
+            },
+            () => {
+                showToast('GPS permission denied. Pan to your location manually.', 'warning');
+                setLocatingUser(false);
+            },
+            { timeout: 10000, enableHighAccuracy: true }
+        );
+    };
 
     const activeReports = reports.filter(r => r.status?.toLowerCase() !== 'resolved' && r.status?.toLowerCase() !== 'false_alarm');
     const resolvedReports = reports.filter(r => r.status?.toLowerCase() === 'resolved' || r.status?.toLowerCase() === 'false_alarm');
@@ -299,7 +331,11 @@ function IncidentsPage() {
                     </div>
                     <div>
                         <label>Location Mode</label>
-                        <select value={reportForm.locationMode} onChange={e => setReportForm({...reportForm, locationMode: e.target.value})}>
+                        <select value={reportForm.locationMode} onChange={e => {
+                            const mode = e.target.value;
+                            setReportForm({...reportForm, locationMode: mode});
+                            if (mode === 'map') flyToUserLocation();
+                        }}>
                             <option value="manual">Enter City / General Region</option>
                             <option value="map">Interactive Map Selector</option>
                             <option value="default">Extract Precise GPS Coordinates</option>
@@ -312,11 +348,23 @@ function IncidentsPage() {
                         </div>
                     )}
                     {reportForm.locationMode === 'map' && (
-                        <div style={{height: '250px', width: '100%', marginBottom: '12px', border: '1px solid var(--border-color)', borderRadius: '8px', overflow:'hidden'}}>
-                            <MapContainer center={[37.7749, -122.4194]} zoom={4} style={{height: '100%', width: '100%'}}>
+                        <div style={{position:'relative', height: '250px', width: '100%', marginBottom: '12px', border: '1px solid var(--border-color)', borderRadius: '8px', overflow:'hidden'}}>
+                            {locatingUser && (
+                                <div style={{position:'absolute', inset:0, zIndex:1000, display:'flex', alignItems:'center', justifyContent:'center', background:'rgba(0,0,0,0.45)', color:'#fff', fontSize:'0.9rem', gap:'8px'}}>
+                                    <span style={{width:'16px',height:'16px',border:'3px solid #fff',borderTopColor:'transparent',borderRadius:'50%',display:'inline-block',animation:'spin 0.7s linear infinite'}} />
+                                    Locating your position…
+                                </div>
+                            )}
+                            <MapContainer center={mapCenter} zoom={mapZoom} style={{height: '100%', width: '100%'}}>
+                                <ChangeView center={mapCenter} zoom={mapZoom} />
                                 <TileLayer url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png" />
                                 <MapPicker position={mapPosition} setPosition={setMapPosition} />
                             </MapContainer>
+                            {mapPosition && (
+                                <div style={{position:'absolute', bottom:'8px', left:'50%', transform:'translateX(-50%)', zIndex:999, background:'rgba(0,0,0,0.6)', color:'#fff', padding:'4px 10px', borderRadius:'20px', fontSize:'0.75rem', pointerEvents:'none'}}>
+                                    📍 {mapPosition.lat.toFixed(5)}, {mapPosition.lng.toFixed(5)}
+                                </div>
+                            )}
                         </div>
                     )}
                     <div className="modal-form-actions">

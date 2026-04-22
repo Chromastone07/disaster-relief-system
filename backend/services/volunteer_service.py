@@ -2,22 +2,39 @@ from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from models.volunteer import Volunteer, Assignment, Resource
+from models.disaster import HelpRequest
+from models.notification import Notification
 
 VALID_ASSIGNMENT_STATUSES = {"assigned", "in_progress", "completed"}
 
 
 # ── VOLUNTEERS ──
 
-def register_volunteer(user_id: int, skills: str, location: str, db: Session):
+def register_volunteer(user_id: int, skills: str, location: str, db: Session, availability: bool = True):
     """
-    Registers a user as a volunteer and stores their coordinates.
-    A user can only register once — raises 400 if already registered.
+    Registers a user as a volunteer.
+    - If they have never applied, creates a new record.
+    - If their previous application was DENIED, resets it to PENDING (re-application).
+    - If they are already PENDING or APPROVED, raises 400.
     """
     existing = db.query(Volunteer).filter(Volunteer.user_id == user_id).first()
     if existing:
-        raise HTTPException(status_code=400, detail="Already registered as a volunteer.")
+        if existing.approval_status == "denied":
+            # Allow re-application: reset the record
+            existing.skills = skills
+            existing.location = location
+            existing.availability = availability
+            existing.approval_status = "pending"
+            db.commit()
+            db.refresh(existing)
+            return existing
+        else:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Already registered as a volunteer (status: {existing.approval_status})."
+            )
 
-    vol = Volunteer(user_id=user_id, skills=skills, location=location, availability=True)
+    vol = Volunteer(user_id=user_id, skills=skills, location=location, availability=availability)
     db.add(vol)
     db.commit()
     db.refresh(vol)
@@ -72,11 +89,45 @@ def assign_volunteer(volunteer_id: int, request_id: int, db: Session):
     )
     db.add(assignment)
 
+    # Need exact user ID to send notification
+    vol_user_id = vol.user_id
+    notification = Notification(
+        user_id=vol_user_id,
+        title="Field Deployment Assignment",
+        message=f"You have been assigned to Help Request #{request_id}."
+    )
+    db.add(notification)
+
     # Mark volunteer as unavailable
     vol.availability = False
     db.commit()
     db.refresh(assignment)
     return assignment
+
+def skill_based_assignment(request_id: int, db: Session):
+    """
+    Admin automatically assigns a volunteer to a help request by matching skill to type.
+    """
+    request = db.query(HelpRequest).filter(HelpRequest.id == request_id).first()
+    if not request:
+        raise HTTPException(status_code=404, detail="Request not found.")
+        
+    volunteer = db.query(Volunteer).filter(
+        Volunteer.availability == True,
+        Volunteer.approval_status == "approved",
+        Volunteer.skills.ilike(f"%{request.type}%")
+    ).first()
+    
+    if not volunteer:
+        volunteer = db.query(Volunteer).filter(
+            Volunteer.availability == True,
+            Volunteer.approval_status == "approved"
+        ).first()
+
+    if not volunteer:
+        raise HTTPException(status_code=404, detail="No available approved volunteers.")
+        
+    return assign_volunteer(volunteer.id, request.id, db)
 
 
 def get_all_assignments(db: Session):

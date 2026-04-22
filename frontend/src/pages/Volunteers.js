@@ -22,6 +22,7 @@ function VolunteersPage() {
     const [selectedRequestId, setSelectedRequestId] = useState('');
     const [skills, setSkills] = useState('');
     const [allowLocation, setAllowLocation] = useState(false);
+    const [availability, setAvailability] = useState(true);
 
     const fetchData = async () => {
         try {
@@ -42,9 +43,8 @@ function VolunteersPage() {
         }
     };
 
-    useEffect(() => {
-        fetchData();
-    }, [user]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    useEffect(() => { fetchData(); }, [user]);
 
     const handleRegisterSubmit = async (e) => {
         e.preventDefault();
@@ -68,12 +68,14 @@ function VolunteersPage() {
         try {
             await apiClient.post('/volunteers/register', { 
                 skills, 
-                location: targetLocation 
+                location: targetLocation,
+                availability: availability
             });
             showToast("Successfully queued as a system responder. Awaiting admin clearance.", "success");
             setRegModalOpen(false);
             setSkills('');
             setAllowLocation(false);
+            setAvailability(true);
             fetchData();
         } catch (err) {
             showToast("Failed to register. Ensure you aren't already registered.", "error");
@@ -95,6 +97,20 @@ function VolunteersPage() {
             fetchData();
         } catch(err) {
             showToast("Deployment failed.", "error");
+        }
+    };
+
+    // Admin can trigger skill-based auto-assignment from the UI
+    // eslint-disable-next-line no-unused-vars
+    const handleSkillAssignSubmit = async (reqId) => {
+        try {
+            await apiClient.post('/volunteers/assign-skill', {
+                request_id: parseInt(reqId)
+            });
+            showToast("Auto-assigned best candidate via Skill Matrix.", "success");
+            fetchData();
+        } catch(err) {
+            showToast("Failed to find available approved volunteer with matching skill.", "error");
         }
     };
 
@@ -129,15 +145,23 @@ function VolunteersPage() {
                     <h1>Volunteer Network</h1>
                     <p>Manage and dispatch registered volunteers to ongoing crises.</p>
                 </div>
+                {/* New volunteer — show apply button */}
                 {user && user.role !== 'admin' && volunteers.length === 0 && (
                     <button className="primary-btn" onClick={() => setRegModalOpen(true)}>
                         <ShieldAlert size={16} /> Request Enrollment
                     </button>
                 )}
-                {user && user.role !== 'admin' && volunteers.length > 0 && (
+                {/* Pending or Approved — show status badge */}
+                {user && user.role !== 'admin' && volunteers.length > 0 && volunteers[0].approval_status !== 'denied' && (
                     <div className={`severity-badge ${volunteers[0].approval_status === 'approved' ? 'low' : 'medium'}`} style={{padding:'8px 16px', fontSize:'0.9rem'}}>
                         Status: {volunteers[0].approval_status.toUpperCase()}
                     </div>
+                )}
+                {/* Denied — show re-apply button */}
+                {user && user.role !== 'admin' && volunteers.length > 0 && volunteers[0].approval_status === 'denied' && (
+                    <button className="primary-btn" style={{background: 'var(--danger)'}} onClick={() => setRegModalOpen(true)}>
+                        <ShieldAlert size={16} /> Re-apply
+                    </button>
                 )}
             </div>
 
@@ -239,10 +263,18 @@ function VolunteersPage() {
                     )}
 
                     {user?.role !== 'admin' && volunteers.length > 0 && (
-                        <div style={{padding:'24px', border:'1px solid var(--accent-main)', borderRadius:'12px', textAlign:'center', marginTop:'32px', background:'var(--bg-card)'}}>
-                            <h3 style={{color:'var(--text-primary)'}}>Your Operative Status: {volunteers[0].approval_status.toUpperCase()}</h3>
+                        <div style={{
+                            padding:'24px',
+                            border: `1px solid ${volunteers[0].approval_status === 'denied' ? 'var(--danger)' : volunteers[0].approval_status === 'approved' ? 'var(--success)' : 'var(--accent-main)'}`,
+                            borderRadius:'12px', textAlign:'center', marginTop:'32px', background:'var(--bg-card)'
+                        }}>
+                            <h3 style={{color: volunteers[0].approval_status === 'denied' ? 'var(--danger)' : 'var(--text-primary)'}}>
+                                Your Operative Status: {volunteers[0].approval_status.toUpperCase()}
+                            </h3>
                             <p style={{color:'var(--text-secondary)'}}>
-                                {volunteers[0].approval_status === "pending" ? "Your application is securely queued for administrative review. Please hold until clearance is granted." : "You are an active operative on the roster. Awaiting deployment calls."}
+                                {volunteers[0].approval_status === 'pending' && 'Your application is queued for administrative review. Please hold until clearance is granted.'}
+                                {volunteers[0].approval_status === 'approved' && 'You are an active operative on the roster. Awaiting deployment calls.'}
+                                {volunteers[0].approval_status === 'denied' && 'Your application was denied. You can update your details and re-apply using the button above.'}
                             </p>
                         </div>
                     )}
@@ -265,6 +297,16 @@ function VolunteersPage() {
                             style={{width:'auto', cursor:'pointer'}}
                         />
                         <label htmlFor="loc-check" style={{margin:0, cursor:'pointer'}}>Bind Live GPS Coordinate Tracking</label>
+                    </div>
+                    <div style={{display:'flex', alignItems:'center', gap:'12px', marginTop:'8px'}}>
+                        <input 
+                            type="checkbox" 
+                            id="avail-check"
+                            checked={availability} 
+                            onChange={e => setAvailability(e.target.checked)} 
+                            style={{width:'auto', cursor:'pointer'}}
+                        />
+                        <label htmlFor="avail-check" style={{margin:0, cursor:'pointer'}}>Available for Immediate Dispatch</label>
                     </div>
                     <div className="modal-form-actions">
                         <button type="button" className="btn-secondary" onClick={() => setRegModalOpen(false)}>Cancel</button>

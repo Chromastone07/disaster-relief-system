@@ -43,7 +43,7 @@ function Dashboard() {
                 apiClient.get('/disaster/reports'),
                 apiClient.get('/volunteers/assignments').catch(() => ({ data: [] })),
                 apiClient.get('/disaster/help').catch(() => ({ data: [] })),
-                apiClient.get('/volunteers/resources').catch(() => ({ data: [] }))
+                apiClient.get('/disaster/inventory').catch(() => ({ data: [] }))
             ]);
             
             // Calculate true operational loads
@@ -112,7 +112,7 @@ function Dashboard() {
                   trend="Registered Caches"
                   icon={Package} 
                   colorClass="info" 
-                  onClick={() => handleDrillDown("Asset Ledger", totalStockpiles.map(s => `${s.quantity} units of ${s.name} (${s.type.toUpperCase()})`))}
+                  onClick={() => handleDrillDown("Asset Ledger", totalStockpiles.map(s => `${s.quantity} units of ${s.item} (${s.category?.toUpperCase()})`))}
                 />
             </div>
 

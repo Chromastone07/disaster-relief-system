@@ -38,6 +38,7 @@ def register(
         user_id=current_user.id,
         skills=data.skills,
         location=data.location,
+        availability=data.availability,
         db=db
     )
 
@@ -104,6 +105,26 @@ def assign(
     if current_user.role != "admin":
         raise HTTPException(status_code=403, detail="Admin access required.")
     return assign_volunteer(data.volunteer_id, data.request_id, db)
+
+
+class SkillAssignRequest(BaseModel):
+    request_id: int
+
+@router.post("/assign-skill", response_model=AssignmentResponse, status_code=201)
+def assign_by_skill(
+    data: SkillAssignRequest,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user)
+):
+    """
+    POST /volunteers/assign-skill
+    Admin auto-assigns the best available volunteer based on skill match.
+    """
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required.")
+    
+    from services.volunteer_service import skill_based_assignment
+    return skill_based_assignment(data.request_id, db)
 
 
 @router.get("/assignments", response_model=List[AssignmentResponse])

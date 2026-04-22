@@ -8,6 +8,7 @@ from typing import Optional
 class VolunteerCreate(BaseModel):
     skills: Optional[str] = None      # comma-separated e.g. "medical, driving"
     location: Optional[str] = None    # "lat,lng"
+    availability: bool = True
 
 
 class VolunteerAvailabilityUpdate(BaseModel):
